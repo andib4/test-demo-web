@@ -1,11 +1,13 @@
 <template>
   <div v-bind="webLinkProps">
-    <span
-      v-if="'preview' in route.query"
-      :data-nimvio-content-id="publicConfig.styleContentId"
-      data-nimvio-template-name="styles"
-      >Website Styles</span
-    >
+    <ClientOnly>
+      <span
+        v-if="isInsideIframe()"
+        :data-nimvio-content-id="publicConfig.styleContentId"
+        data-nimvio-template-name="styles"
+        >Website Styles</span
+      >
+    </ClientOnly>
     <NuxtPage />
   </div>
 </template>
@@ -19,28 +21,32 @@ import stringToSlug from "./utils/stringToSlug";
 const { public: publicConfig } = useRuntimeConfig();
 const route = useRoute();
 const router = useRouter();
+const isInsideIframe = () => window.self !== window.top;
 
 const webLinkProps = {
   "data-nimvio-project-id": publicConfig.projectId,
   "data-kontent-language-codename": "default",
 };
 
-const { data } = await useAsyncData("app", async ({ $gqlClient }) => {
-  const { data: response } = await getContentById<StylesTemplate>(
-    $gqlClient,
-    publicConfig.styleContentId,
-    { deep: true }
-  );
-  const pageData = response.Data;
+const { data: styleData } = await useAsyncData(
+  "app-style",
+  async ({ $gqlClient }) => {
+    const { data: response } = await getContentById<StylesTemplate>(
+      $gqlClient,
+      publicConfig.styleContentId,
+      { deep: true }
+    );
+    const pageData = response.Data;
 
-  return {
-    pageData,
-    styles: pageData.styles,
-  };
-});
+    return {
+      pageData,
+      styles: pageData.styles,
+    };
+  }
+);
 
 const customStyles = computed(() => {
-  const styles = data.value.styles.map((style) => {
+  const styles = styleData.value.styles.map((style) => {
     const styleObj = {
       type: "text/css",
       innerHTML: style.Data.internalCss
@@ -56,9 +62,9 @@ const customStyles = computed(() => {
 
 const customLinks = computed(() => {
   const links = [];
-  data.value.styles.forEach((style) => {
+  styleData.value.styles.forEach((style) => {
     // Add style from externalCss
-    if (style.Data.externalCss) {
+    if (style.Data.externalCss && typeof style.Data.externalCss === "string") {
       links.push({
         rel: "stylesheet",
         as: "style",
@@ -82,7 +88,7 @@ const { $nimvioSdk } = useNuxtApp();
 onBeforeMount(() => {
   $nimvioSdk.livePreviewUtils.onPreviewContentChange<StylesData>((formData) => {
     if (formData.id === publicConfig.styleContentId) {
-      data.value.styles = formData.formData.styles;
+      styleData.value.styles = formData.formData.styles;
     }
   });
 

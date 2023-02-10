@@ -54,7 +54,6 @@ export default defineNuxtConfig({
           content: "Nimvio Theme for Royal Blue on White",
         },
       ],
-      link: [{ rel: "stylesheet", href: "./variables.css" }],
     },
   },
   typescript: {
